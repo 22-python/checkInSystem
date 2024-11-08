@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>签到系统</title>
+  <link rel="stylesheet" href="/css/student.css" />
+  <!-- 引入样式 -->
+  <!-- Import style -->
+  <link rel="stylesheet" href="//unpkg.com/element-plus/dist/index.css" />
+  <!-- Import Vue 3 -->
+  <script src="//unpkg.com/vue@3"></script>
+  <!-- Import component library -->
+  <script src="//unpkg.com/element-plus"></script>
+  <!-- 引入 Element Plus -->
+  <script src="https://unpkg.com/element-plus/dist/index.full.js"></script>
+  <!-- 引入 axios -->
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <script src="https://cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.0.0/dist/echarts.min.js"></script>
+</head>
+
+<body>
+  <div id="app">
+    <el-container>
+      <el-header>签到系统(学生端)</el-header>
+      <el-container>
+        <el-aside width="200px"><el-menu default-active="2" active-text-color="#0bcae3" class="el-menu-vertical-demo"
+            @open="handleOpen" @close="handleClose">
+            <el-menu-item index="1" @click="showContent('home')">
+              <el-icon>
+                <setting />
+              </el-icon>
+              <span style="font-size: 20px;">首页</span>
+            </el-menu-item>
+            <el-sub-menu index="2">
+              <template #title>
+                <el-icon>
+                  <location />
+                </el-icon>
+                <span style="font-size: 16px;">个人中心</span>
+              </template>
+              <el-menu-item index="2-1" @click="showContent('basicInfo')">基本信息</el-menu-item>
+              <el-menu-item index="2-2" @click="showContent('settings')">设置</el-menu-item>
+            </el-sub-menu>
+            <el-menu-item index="3" @click="showContent('message')">
+              <el-icon>
+                <setting />
+              </el-icon>
+              <span style="font-size: 20px;">消息</span>
+            </el-menu-item>
+          </el-menu>
+        </el-aside <el-main>
+        <!-- 首页内容 -->
+        <div v-if="currentView === 'home'" style="display: flex; flex-direction: column;">
+          <!-- 头像和名称 -->
+          <img v-if="avatarUrl" :src="avatarUrl" alt="用户头像" class="avatar1" />
+          <span class="student-name">{{ student_name }}</span>
+          <!-- 签到统计区域 -->
+          <div class="attendance-statistics">
+            <div id="signInChart" class="chart"></div>
+          </div>
+        </div>
+
+        <div v-if="currentView === 'basicInfo'" class="user-info">
+          <h1>个人信息</h1>
+          <div class="info-item">
+            <img v-if="avatarUrl" :src="avatarUrl" alt="用户头像" class="avatar" />
+          </div>
+          <div class="info-item">
+            <label>学号:</label>
+            <span>{{ student_id }}</span>
+          </div>
+          <div class="info-item">
+            <label>姓名:</label>
+            <span>{{ student_name }}</span>
+          </div>
+          <div class="info-item">
+            <label>性别:</label>
+            <span>{{ gender }}</span>
+          </div>
+          <div class="info-item">
+            <label>班级:</label>
+            <span>{{ classId }}</span>
+          </div>
+          </main>
+        </div>
+        <div v-if="currentView === 'settings'" class="user-info">
+          <h2>修改头像</h2>
+          <img v-if="avatarUrl" :src="avatarUrl" alt="用户头像" class="avatar" />
+          <form @submit.prevent="uploadAvatar" style="display: flex; flex-direction: column;">
+            <input type="file" id="avatarInput" accept="image/*" required>
+            <button type="submit" style="width: 100px; margin-top: 15px;">上传头像</button>
+          </form>
+
+          <h2>修改密码</h2>
+          <form @submit.prevent="changePassword" style="display: flex; flex-direction: column; width: 200px;">
+            <input style="margin: 3px;" type="password" v-model="currentPassword" placeholder="当前密码" required />
+            <input style="margin: 3px;" type="password" v-model="newPassword" placeholder="新密码" required />
+            <input style="margin: 3px;" type="password" v-model="confirmPassword" placeholder="确认新密码" required />
+            <button type="submit" style="width: 100px; margin-top: 15px;">修改密码</button>
+          </form>
+        </div>
+        <div v-if="currentView === 'message'" class="chat-container">
+          <h2 style="margin-left: 20px;">聊天室</h2>
+          <!-- 消息显示区 -->
+          <div id="message-container" class="message-container" ref="messageContainer">
+            <div v-for="msg in messages" :key="msg.timestamp" class="message">
+              <img class="message-icon" :src="msg.avatar" />
+              <div class="message-content-wrapper">
+                <div class="name" style="font-size: 12px;">{{ msg.sender }}</div>
+                <div v-if="!msg.activity_id" class="message-content">
+                  {{ msg.message }}
+                </div>
+                <div v-else class="sign-in-box" @click="CheckinClick(msg.activity_id)">
+                  签到
+                </div>
+                <span class="message-timestamp">{{ msg.timestamp }}</span>
+              </div>
+            </div>
+          </div>
+          <!-- 用户输入区 -->
+          <div class="input-container">
+            <input type="text" v-model="newMessage" placeholder="输入消息..." @keyup.enter="sendMessage" />
+            <button @click="sendMessage">发送</button>
+          </div>
+        </div>
+        <div v-if="currentView === 'True'" class="chat-container">
+          <el-button class="back-button" type="text" icon="el-icon-arrow-left" @click="showContent('message')">
+            返回 </el-button>
+          <div class="container" v-if="activity_type === '普通'&&!is_photo">
+            <div class="sign-in-circle" @click="handleCheckinClick">
+              <p>签到</p>
+            </div>
+          </div>
+          <div class="container_many" v-if="activity_type === '普通' && is_photo">
+            <!-- 摄像头和拍照界面 -->
+            <div class="camera-container" v-if="showCamera">
+              <!-- 视频流显示 -->
+              <video ref="video" width="320" height="240" v-show="!photoDataUrl" autoplay></video>
+              <!-- 拍照结果显示 -->
+              <canvas ref="canvas" width="320" height="240" v-show="photoDataUrl"></canvas>
+              <!-- 拍照和重拍按钮 -->
+              <div class="camera-buttons">
+                <el-button type="primary" v-if="!photoDataUrl" @click="takePhoto">拍照</el-button>
+                <el-button type="warning" v-if="photoDataUrl" @click="retakePhoto">重拍</el-button>
+              </div>
+            </div>
+            <!-- 签到按钮 -->
+            <div class="sign-in-circle" @click="handleCheckinClick">
+              <p>签到</p>
+            </div>
+          </div>
+          <div class="container_many" v-if="activity_type === '签到码'">
+            <div style="display: flex; flex-direction: row; font-size: 20px; margin-top: 60px; margin-bottom: 90px;">
+              <div>签到码：</div>
+              <input type="number" style="height: 25px; border-radius: 6px; border: 1px solid rgb(212, 210, 208);"
+                id="checkin-code" v-model="qiandaocode" placeholder="请输入签到码" />
+            </div>
+            <!-- 签到按钮 -->
+            <div class="sign-in-circle" @click="handleCheckinClick">
+              <p>签到</p>
+            </div>
+          </div>
+          <div class="container_many" v-if="activity_type === '手势'">
+            <div style="display: flex; flex-direction: row; font-size: 20px; margin-bottom: 10px;">
+              <iframe src="shoushi.html" width="400" height="420" style="border:none; "></iframe>
+            </div>
+            <!-- 签到按钮 -->
+            <div class="sign-in-circle" @click="handleCheckinClick">
+              <p>签到</p>
+            </div>
+          </div>
+          <div class="container_many" v-if="activity_type === '位置'">
+            <iframe src="Location.html" width="100%" height="100% " style="border: none;"></iframe>
+            <!-- 签到按钮 -->
+            <div class="sign-in-circle" @click="handleCheckinClick">
+              <p>签到</p>
+            </div>
+          </div>
+          <div class="container_many" v-if="activity_type === '二维码'">
+            <div style="display: flex; flex-direction: row;">
+              <iframe src="qrcode.html" width="700" height="500 " style="border: none;"></iframe>
+            </div>
+            <!-- 签到按钮 -->
+            <div class="sign-in-circle" @click="handleCheckinClick">
+              <p>签到</p>
+            </div>
+          </div>
+        </div>
+        <div v-if="currentView === 'present'" class="chat-container">
+          <el-button class="back-button" type="text" icon="el-icon-arrow-left" @click="showContent('message')">
+            返回 </el-button>
+          <div class="container1">
+            <img v-if="checkinPhoto" :src="checkinPhoto" alt="签到照片" />
+            <div class="checkmark">
+              <span>&#10004;</span>
+            </div>
+            <p class="success-message">签到成功</p>
+            <p class="timestamp">{{checkinTime}}</p>
+          </div>
+        </div>
+        <div v-if="currentView === 'late'" class="chat-container">
+          <el-button class="back-button" type="text" icon="el-icon-arrow-left" @click="showContent('message')">
+            返回
+          </el-button>
+          <div class="container1">
+            <img v-if="checkinPhoto" :src="checkinPhoto" alt="签到照片" />
+            <div class="checkmark">
+              <span style="color: rgba(102, 25, 244, 0.33);">&#10006;</span>
+            </div>
+            <p class="success-message">迟到</p>
+            <p class="timestamp">{{checkinTime}}</p>
+          </div>
+        </div>
+        <div v-if="currentView === 'absent'" class="chat-container">
+          <el-button class="back-button" type="text" icon="el-icon-arrow-left" @click="showContent('message')">
+            返回 </el-button>
+          <div class="container1">
+            <img v-if="checkinPhoto" :src="checkinPhoto" alt="签到照片" />
+            <div class="checkmark">
+              <span style="color: red;">&#10006;</span>
+            </div>
+            <p class="success-message">签到失败，已过期</p>
+            <p class="timestamp">{{checkinTime}}</p>
+          </div>
+        </div>
+        <div v-if="currentView === 'not_started'" class="chat-container">
+          <el-button class="back-button" type="text" icon="el-icon-arrow-left" @click="showContent('message')">
+            返回 </el-button>
+          <div class="container1">
+            <div class="checkmark">
+              <span style="color: rgb(217, 255, 0);">!</span>
+            </div>
+            <p class="success-message">签到还未开始</p>
+          </div>
+        </div>
+        </el-main>
+      </el-container>
+    </el-container>
+  </div>
+  <script src="/js/student.js"></script>
+</body>
+
+</html>

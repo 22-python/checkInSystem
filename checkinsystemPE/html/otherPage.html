@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>高德地图位置标记</title>
+    <style>
+        #map {
+            height: 400px;
+            width: 1000px;
+        }
+    </style>
+    <link rel="stylesheet" href="//unpkg.com/element-plus/dist/index.css" />
+    <!-- Import Vue 3 -->
+    <script src="//unpkg.com/vue@3"></script>
+    <!-- Import component library -->
+    <script src="//unpkg.com/element-plus"></script>
+    <!-- 引入 Element Plus -->
+    <script src="https://unpkg.com/element-plus/dist/index.full.js"></script>
+    <!-- 引入 axios -->
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js"></script>
+    <script src="https://webapi.amap.com/maps?v=2.0&key=e14d24e305c422fada0170cc686272b8"></script>
+    <script src="/js/map.js"></script> <!-- 引用刚才的 map.js 文件 -->
+</head>
+
+<body>
+    <div id="ap">
+
+        <button @click="showMap">显示地图</button> <!-- Vue 点击事件 -->
+        <!-- <div id="result"></div> -->
+        <div id="map"></div>
+    </div>
+    <script src="/js/main.js"> </script>
+
+</body>
+
+</html>

@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>签到系统</title>
+  <link rel="stylesheet" href="/css/teacher.css" />
+  <style>
+    #map {
+      height: 400px;
+      width: 1000px;
+    }
+  </style>
+  <!-- 引入样式 -->
+  <!-- Import style -->
+  <link rel="stylesheet" href="//unpkg.com/element-plus/dist/index.css" />
+  <!-- Import Vue 3 -->
+  <script src="//unpkg.com/vue@3"></script>
+  <!-- Import component library -->
+  <script src="//unpkg.com/element-plus"></script>
+  <!-- 引入 Element Plus -->
+  <script src="https://unpkg.com/element-plus/dist/index.full.js"></script>
+  <!-- 引入 axios -->
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <script src="https://cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js"></script>
+</head>
+
+<body>
+  <div id="app">
+    <el-container>
+      <el-header>签到系统(教师端)</el-header>
+      <el-container>
+        <el-aside width="200px"><el-menu default-active="2" active-text-color="#0bcae3" class="el-menu-vertical-demo"
+            @open="handleOpen" @close="handleClose">
+            <el-menu-item index="1" @click="showContent('home')">
+              <el-icon>
+                <setting />
+              </el-icon>
+              <span style="font-size: 20px;">首页</span>
+            </el-menu-item>
+            <el-sub-menu index="2">
+              <template #title>
+                <el-icon>
+                  <location />
+                </el-icon>
+                <span style="font-size: 16px;">个人中心</span>
+              </template>
+              <el-menu-item index="2-1" @click="showContent('basicInfo')">基本信息</el-menu-item>
+              <el-menu-item index="2-2" @click="showContent('settings')">设置</el-menu-item>
+            </el-sub-menu>
+            <!-- <el-menu-item index="3" @click="showContent('present')">
+              <el-icon>
+                <document />
+              </el-icon>
+              <span style="font-size: 16px;">已签到</span>
+            </el-menu-item>
+            <el-menu-item index="4" @click="showContent('absent')">
+              <el-icon>
+                <setting />
+              </el-icon>
+              <span style="font-size: 16px;">未签到</span>
+            </el-menu-item>
+            <el-menu-item index="5" @click="showContent('late')">
+              <el-icon>
+                <setting />
+              </el-icon>
+              <span style="font-size: 16px;">迟到</span>
+            </el-menu-item> -->
+            <!-- <el-menu-item index="6" @click="showContent('sendSignIn')">
+              <el-icon>
+                <setting />
+              </el-icon>
+              <span style="font-size: 16px;">发送签到</span>
+            </el-menu-item> -->
+            <el-menu-item index="7" @click="showContent('message')">
+              <el-icon>
+                <setting />
+              </el-icon>
+              <span style="font-size: 16px;">消息</span>
+            </el-menu-item>
+          </el-menu>
+        </el-aside <el-main>
+        <div v-show="currentView === 'home'" class="sign_circle">
+          <div class="container">
+            <div class="sign-in-circle" @click="showContent('SignIndetials')">
+              <p>发布签到</p>
+            </div>
+          </div>
+        </div>
+        <div v-show="currentView === 'basicInfo'" class="user-info">
+          <h1>个人信息</h1>
+          <div class="info-item">
+            <img v-if="avatarUrl" :src="avatarUrl" alt="用户头像" class="avatar" />
+          </div>
+          <div class="info-item">
+            <label>工号:</label>
+            <span>{{ teacher_id }}</span>
+          </div>
+          <div class="info-item">
+            <label>姓名:</label>
+            <span>{{ teacher_name }}</span>
+          </div>
+          <div class="info-item">
+            <label>性别:</label>
+            <span>{{ gender }}</span>
+          </div>
+          </main>
+        </div>
+        <div v-show="currentView === 'attendanceHistory'">
+          这是签到历史内容
+        </div>
+        <div v-show="currentView === 'check_details'">
+          <!-- 班级选择 -->
+          <div style="margin-top: 10px; margin-bottom:10px; margin-left: 10px;">
+            <select id="class-select" v-model="selectedClassId" @change="changeclass"
+              style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; width: 180px; background-color: #ffffff;">
+              <option v-for="classItem in classList" :key="classItem.class_id" :value="classItem.class_id">
+                {{ classItem.class_name }}
+              </option>
+            </select>
+            <!-- 签到状态选择 -->
+            <select id="status-select" v-model="selectedStatus" @change="changestatus"
+              style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; width: 180px; margin-left: 10px; background-color: #ffffff;">
+              <option value="all">全部状态</option>
+              <option value="present">已签到</option>
+              <option value="absent">未签到</option>
+              <option value="late">迟到</option>
+            </select>
+          </div>
+          <el-table :data="filteredStudents" border style="width: 100%;" max-height="700">
+            <el-table-column type="selection"></el-table-column>
+            <el-table-column label="序号" width="183" :resizable="false">
+              <template v-slot="scope">{{ scope.$index + 1 }}</template>
+            </el-table-column>
+            <el-table-column prop="student_id" label="学号" width="200" :resizable="false"></el-table-column>
+            <el-table-column prop="name" label="姓名" width="200" :resizable="false"></el-table-column>
+            <el-table-column prop="gender" label="性别" width="200" :resizable="false"></el-table-column>
+            <el-table-column prop="status" label="签到状态" width="210" :resizable="false">
+              <template v-slot="scope">
+                <span
+                  :style="{ color: scope.row.status === '已签到' ? 'green' : scope.row.status === '未签到' ? 'red' : scope.row.status === '迟到' ? 'orange' : 'black'}">
+                  {{ scope.row.status }}
+                </span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="checkin_time" label="签到时间" width="200" :resizable="false"></el-table-column>
+            <el-table-column label="签到照片" width="100" :resizable="false">
+              <template v-slot="scope">
+                <img :src=processPhotoUrl(scope.row.checkin_photo) alt="学生照片" style="width: 100%; height: auto;"
+                  v-if="scope.row.checkin_photo" />
+                <span v-else>无照片</span>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+        <div v-show="currentView === 'SignIndetials'">
+          <main>
+            <section class="content">
+              <div class="card">
+                <h2>签到信息</h2>
+                <form>
+                  <!-- 标题输入框 -->
+                  <div class="form-group">
+                    <!-- <label for="title">签到标题:</label> -->
+                    <!-- 使用 v-model 绑定 title -->
+                    <!-- <input type="text" id="title" v-model="title" placeholder="请输入标题" /> -->
+                  </div>
+                  <!-- 签到方式选择 -->
+                  <div class="form-group">
+                    <div class="tabs">
+                      <!-- 为按钮添加 @click.prevent 以阻止默认行为 -->
+                      <button class="tab" :class="{ active: activity_type === '普通' }"
+                        @click.prevent="activity_type = '普通'">普通</button>
+                      <button class="tab" :class="{ active: activity_type === '手势' }"
+                        @click.prevent="activity_type = '手势'">手势</button>
+                      <button class="tab" :class="{ active: activity_type === '位置' }"
+                        @click.prevent="activity_type = '位置'">位置</button>
+                      <button class="tab" :class="{ active: activity_type === '二维码' }"
+                        @click.prevent="activity_type = '二维码'">二维码</button>
+                      <button class="tab" :class="{ active: activity_type === '签到码' }"
+                        @click.prevent="activity_type = '签到码'">签到码</button>
+                    </div>
+                  </div>
+
+                  <!-- 根据不同的签到模式显示相应内容 -->
+                  <div class="form-group">
+                    <!-- 手势签到，9*9手势图 -->
+                    <div v-if="activity_type === '手势'" class="gesture-container">
+                      <iframe src="shoushi.html" width="400" height="450" style="border:none; "></iframe>
+                    </div>
+                    <!-- 签到码签到 -->
+                    <div v-if="activity_type === '签到码'">
+                      <label for="checkin-code">签到码:</label>
+                      <input type="number"
+                        style="height: 25px; border-radius: 6px; border: 1px solid rgb(212, 210, 208);"
+                        id="checkin-code" v-model="qiandaocode" placeholder="请输入签到码" />
+                    </div>
+                    <!--二维码 -->
+                    <div v-if="activity_type === '二维码'">
+                      <label for="checkin-code">
+                        自动更新二维码
+                        <el-switch v-model="updatecode"
+                          style="--el-switch-on-color: #76deec; --el-switch-off-color: #DCDFE6">
+                        </el-switch>
+                        <!-- 更新频率选择 -->
+                        <div v-if="updatecode">抱歉功能还未开发！！！</div>
+                        <!-- <div v-if="updatecode" style="display: flex; align-items: center; margin-top: 8px;">
+                          <label for="update-frequency" style="color: #766f6f; font-size: 18px;">更新频率:</label>
+                          <select id="update-frequency" style="width: 10%;" v-model="updateFrequency">
+                            <option value="5000">5秒</option>
+                            <option value="8000">8秒</option>
+                            <option value="10000">10秒</option>
+                            <option value="20000">20秒</option>
+                          </select>
+                        </div> -->
+                      </label>
+                    </div>
+                    <div v-if="activity_type === '位置'">
+                      <label>
+                        签到位置
+                        <el-switch v-model=" Specifylocal"
+                          style="--el-switch-on-color: #76deec; --el-switch-off-color: #DCDFE6">
+                        </el-switch>
+                        <div v-if="Specifylocal" style="height: 400px; width: 100%; margin-bottom: 50px; ">
+                          <!-- <div>签到范围</div> -->
+                          <label for="rangeSelect" style="margin-bottom: 10px;">签到范围:</label>
+                          <select id="rangeSelect" v-model="checkin_range">
+                            <option value="100">100 米</option>
+                            <option value="200">200 米</option>
+                            <option value="500">500 米</option>
+                          </select>
+                          <iframe src="Location.html" width="100%" height="100% " style="border: none;"></iframe>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+                  <!-- 活动时长 -->
+                  <div class="form-group" v-if="activity_type !== '二维码'">
+                    <label for="duration">活动时长:</label>
+                    <select id="duration" v-model="duration">
+                      <option value="1">1分钟</option>
+                      <option value="5">5分钟</option>
+                      <option value="10">10分钟</option>
+                      <option value="20">20分钟</option>
+                    </select>
+                    <small>活动结束后
+                      <select id="duration" v-model="late_duration">
+                        <option value="5">5分钟</option>
+                        <option value="10">10分钟</option>
+                        <option value="15">15分钟</option>
+                      </select>
+                      以内签到，之后标记为迟到
+                    </small>
+                  </div>
+                  <!-- 额外设置 -->
+                  <div class="form-group extra-options">
+                    <h3>额外设置</h3>
+                    <label v-if="activity_type === '普通'">
+                      要求拍照
+                      <el-switch v-model="requirePhoto"
+                        style="--el-switch-on-color: #76deec; --el-switch-off-color: #DCDFE6">
+                      </el-switch>
+                    </label>
+                    <label v-if="activity_type !== '二维码'">
+                      定时发布
+                      <el-switch v-model="timing" style="--el-switch-on-color: #76deec; --el-switch-off-color: #DCDFE6">
+                      </el-switch>
+                    </label>
+                    <el-date-picker v-if="timing" v-model="scheduled_time" type="datetime" placeholder="选择发布时间"
+                      style="margin-bottom: 10px;">
+                    </el-date-picker>
+                    <label>
+                      选班发布
+                      <el-switch v-model="multiClass"
+                        style="--el-switch-on-color: #76deec; --el-switch-off-color: #DCDFE6">
+                      </el-switch>
+                    </label>
+                    <el-select v-if="multiClass" v-model="selectedClasses" multiple placeholder="选择班级"
+                      style="margin-top: 5px; width: 35%;">
+                      <el-option v-for="classItem in classList" :key="classItem.class_id" :label="classItem.class_name"
+                        :value="classItem.class_name">
+                      </el-option>
+                    </el-select>
+                  </div>
+
+                  <!-- 操作按钮 -->
+                  <div class="form-group action-buttons">
+                    <!-- 绑定Vue方法，而不是使用原生事件监听器 -->
+                    <button type="submit" class="btn start" @click="handleSubmit">立即开始</button>
+                  </div>
+                </form>
+              </div>
+            </section>
+          </main>
+        </div>
+        <div v-show="currentView === 'QRcode'&& activity_type === '二维码'">
+          <main>
+            <div id="myModal" class="modal" v-if="isModalVisible">
+              <div class="modal-content">
+                <h2>签到二维码</h2>
+                <div id="qrcode-modal">
+                  <div id="qrcode" ref="qrcode"></div> <!-- 使用 ref 来绑定 -->
+                </div>
+                <button class="close-btn" @click="closeModal">结束</button>
+              </div>
+            </div>
+          </main>
+        </div>
+        <div v-show="currentView === 'message'" class="chat-container">
+          <h2 style="margin-left: 20px;">聊天室</h2>
+          <!-- 班级选择 -->
+          <div style="margin-left: 20px;">
+            <select id="class-select" v-model="selectedClassId" @change="fetchMessages"
+              style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; width: 180px;">
+              <option v-for="classItem in classList" :key="classItem.class_id" :value="classItem.class_id">
+                {{ classItem.class_name }}
+              </option>
+            </select>
+          </div>
+          <!-- 消息显示区 -->
+          <div id="message-container" class="message-container" ref="messageContainer">
+            <div v-for="msg in messages" :key="msg.timestamp" class="message">
+              <img class="message-icon" :src="msg.avatar" />
+              <div class="message-content-wrapper">
+                <div class="name" style="font-size: 12px;">{{ msg.sender }}</div>
+                <div v-if="!msg.activity_id" class="message-content">
+                  {{ msg.message }}
+                </div>
+                <div v-else class="sign-in-box" @click="handleCheckinClick(msg.activity_id)">
+                  签到
+                </div>
+                <span class="message-timestamp">{{ msg.timestamp }}</span>
+              </div>
+            </div>
+          </div>
+          <!-- 用户输入区 -->
+          <div class="input-container">
+            <input type="text" v-model="newMessage" placeholder="输入消息..." @keyup.enter="sendMessage" />
+            <button @click="sendMessage">发送</button>
+          </div>
+        </div>
+        <div v-if="currentView === 'settings'" class="user-info">
+          <h2>修改头像</h2>
+          <img v-if="avatarUrl" :src="avatarUrl" alt="用户头像" class="avatar" />
+          <form @submit.prevent="uploadAvatar" style="display: flex; flex-direction: column;">
+            <input type="file" id="avatarInput" accept="image/*" required>
+            <button type="submit" style="width: 100px; margin-top: 15px;">上传头像</button>
+          </form>
+
+          <h2>修改密码</h2>
+          <form @submit.prevent="changePassword" style="display: flex; flex-direction: column; width: 200px;">
+            <input style="margin: 3px;" type="password" v-model="currentPassword" placeholder="当前密码" required />
+            <input style="margin: 3px;" type="password" v-model="newPassword" placeholder="新密码" required />
+            <input style="margin: 3px;" type="password" v-model="confirmPassword" placeholder="确认新密码" required />
+            <button type="submit" style="width: 100px; margin-top: 15px;">修改密码</button>
+          </form>
+        </div>
+        </el-main>
+      </el-container>
+    </el-container>
+  </div>
+  <script src="/js/teacher.js"></script>
+</body>
+
+</html>
